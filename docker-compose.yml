@@ -1,0 +1,41 @@
+networks:
+  ai-net:
+    name: ai-net
+
+services:
+  stt:
+    build: ./stt
+    ports:
+      - "8001:8001"
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+    volumes:
+      - stt-cache:/app/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - ai-net
+
+  # tts:          # Phase 3 — Parkiet TTS
+  #   build: ./tts
+  #   ports:
+  #     - "8002:8002"
+  #   networks:
+  #     - ai-net
+
+  # n8n:          # Phase 4 — Orchestration
+  #   image: n8nio/n8n
+  #   ports:
+  #     - "5678:5678"
+  #   networks:
+  #     - ai-net
+
+volumes:
+  stt-cache:
