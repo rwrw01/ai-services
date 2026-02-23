@@ -23,12 +23,37 @@ services:
     networks:
       - ai-net
 
-  # tts:          # Phase 3 — Parkiet TTS
-  #   build: ./tts
-  #   ports:
-  #     - "8002:8002"
-  #   networks:
-  #     - ai-net
+  tts:
+    build: ./tts
+    ports:
+      - "8002:8002"
+    volumes:
+      - tts-cache:/data/tts-cache
+      - tts-models:/app/.cache
+    environment:
+      - TTS_PIPER_ENABLED=true
+      - TTS_PARKIET_ENABLED=true
+      - TTS_DEFAULT_ENGINE=piper
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    env_file:
+      - path: .env
+        required: false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai-net
 
   # n8n:          # Phase 4 — Orchestration
   #   image: n8nio/n8n
@@ -39,3 +64,5 @@ services:
 
 volumes:
   stt-cache:
+  tts-cache:
+  tts-models:

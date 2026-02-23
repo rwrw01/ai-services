@@ -1,0 +1,11 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic-settings>=2.0.0
+piper-tts>=1.4.0
+torch>=2.2.0
+torchaudio>=2.2.0
+transformers>=4.40.0
+protobuf>=4.25.0
+huggingface-hub>=0.22.0
+numpy>=1.26.0
+pathvalidate>=3.0.0
