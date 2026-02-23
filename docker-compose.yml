@@ -55,7 +55,31 @@ services:
     networks:
       - ai-net
 
-  # n8n:          # Phase 4 — Orchestration
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai-net
+
+  # n8n:          # Phase 5/6 — Orchestration
   #   image: n8nio/n8n
   #   ports:
   #     - "5678:5678"
@@ -66,3 +90,4 @@ volumes:
   stt-cache:
   tts-cache:
   tts-models:
+  ollama-data:
