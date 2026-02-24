@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     libprotobuf-dev \
     curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -25,15 +26,15 @@ RUN python -c "\
 from huggingface_hub import hf_hub_download; \
 import os; \
 os.makedirs('/app/models', exist_ok=True); \
-hf_hub_download('rhasspy/piper-voices', 'nl/nl_BE/nathalie/medium/nl_BE-nathalie-medium.onnx', local_dir='/app/models', local_dir_use_symlinks=False); \
-hf_hub_download('rhasspy/piper-voices', 'nl/nl_BE/nathalie/medium/nl_BE-nathalie-medium.onnx.json', local_dir='/app/models', local_dir_use_symlinks=False); \
+hf_hub_download('rhasspy/piper-voices', 'nl/nl_NL/pim/medium/nl_NL-pim-medium.onnx', local_dir='/app/models', local_dir_use_symlinks=False); \
+hf_hub_download('rhasspy/piper-voices', 'nl/nl_NL/pim/medium/nl_NL-pim-medium.onnx.json', local_dir='/app/models', local_dir_use_symlinks=False); \
 print('Piper model downloaded')"
 
 # Flatten model files to /app/models/
-RUN find /app/models -name "nl_BE-nathalie-medium.onnx" -not -path "/app/models/nl_BE-nathalie-medium.onnx" \
-    -exec cp {} /app/models/nl_BE-nathalie-medium.onnx \; 2>/dev/null || true && \
-    find /app/models -name "nl_BE-nathalie-medium.onnx.json" -not -path "/app/models/nl_BE-nathalie-medium.onnx.json" \
-    -exec cp {} /app/models/nl_BE-nathalie-medium.onnx.json \; 2>/dev/null || true
+RUN find /app/models -name "nl_NL-pim-medium.onnx" -not -path "/app/models/nl_NL-pim-medium.onnx" \
+    -exec cp {} /app/models/nl_NL-pim-medium.onnx \; 2>/dev/null || true && \
+    find /app/models -name "nl_NL-pim-medium.onnx.json" -not -path "/app/models/nl_NL-pim-medium.onnx.json" \
+    -exec cp {} /app/models/nl_NL-pim-medium.onnx.json \; 2>/dev/null || true
 
 COPY app/ ./app/
 

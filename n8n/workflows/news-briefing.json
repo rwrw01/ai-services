@@ -1,0 +1,270 @@
+{
+  "id": "1",
+  "name": "News Briefing — Daily Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 4 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron 04:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.nos.nl/nosnieuwsalgemeen",
+        "options": {}
+      },
+      "id": "rss-nos",
+      "name": "RSS NOS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://www.nu.nl/rss/Algemeen",
+        "options": {}
+      },
+      "id": "rss-nu",
+      "name": "RSS NU.nl",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.tweakers.net/mixed.xml",
+        "options": {}
+      },
+      "id": "rss-tweakers",
+      "name": "RSS Tweakers",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-feeds",
+      "name": "Merge Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-feeds-2",
+      "name": "Merge All",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "compare": "selectedFields",
+        "fieldsToCompare": "link"
+      },
+      "id": "dedup",
+      "name": "Remove Duplicates",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "id": "limit-20",
+      "name": "Limit 20",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add source identifier and normalize fields\nconst items = $input.all();\nreturn items.map(item => {\n  const url = item.json.link || item.json.url || '';\n  let source = 'onbekend';\n  if (url.includes('nos.nl')) source = 'nos';\n  else if (url.includes('nu.nl')) source = 'nu.nl';\n  else if (url.includes('tweakers.net')) source = 'tweakers';\n  \n  // Strip HTML tags from description\n  const rawDesc = item.json.contentSnippet || item.json.description || item.json.content || '';\n  const description = rawDesc.replace(/<[^>]*>/g, '').trim();\n  \n  return {\n    json: {\n      source,\n      title: item.json.title || '',\n      url,\n      description,\n      published_at: item.json.isoDate || item.json.pubDate || new Date().toISOString()\n    }\n  };\n});"
+      },
+      "id": "normalize",
+      "name": "Normalize Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/news/ingest/article",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: $json.source, title: $json.title, url: $json.url, description: $json.description, published_at: $json.published_at }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "create-article",
+      "name": "Create Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1550, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Carry forward description and new article ID\nconst items = $input.all();\nconst prevItems = $('Normalize Fields').all();\nreturn items.map((item, i) => ({\n  json: {\n    ...prevItems[i].json,\n    article_id: item.json.id\n  }\n}));"
+      },
+      "id": "merge-id",
+      "name": "Merge Article ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://tts:8002/api/tts/synthesize",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.title + '. ' + $json.description, engine: 'parkiet', output_format: 'mp3' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 300000
+        }
+      },
+      "id": "tts-parkiet",
+      "name": "TTS Parkiet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1950, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://backend:8000/api/news/ingest/article/{{ $('Merge Article ID').item.json.article_id }}/audio?engine=parkiet",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "upload-parkiet",
+      "name": "Upload Parkiet Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2150, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "news-refresh",
+        "options": {}
+      },
+      "id": "webhook-refresh",
+      "name": "Manual Refresh Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 600],
+      "webhookId": "news-refresh"
+    }
+  ],
+  "connections": {
+    "Cron 04:30": {
+      "main": [
+        [
+          { "node": "RSS NOS", "type": "main", "index": 0 },
+          { "node": "RSS NU.nl", "type": "main", "index": 0 },
+          { "node": "RSS Tweakers", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "RSS NOS": {
+      "main": [
+        [{ "node": "Merge Feeds", "type": "main", "index": 0 }]
+      ]
+    },
+    "RSS NU.nl": {
+      "main": [
+        [{ "node": "Merge Feeds", "type": "main", "index": 1 }]
+      ]
+    },
+    "Merge Feeds": {
+      "main": [
+        [{ "node": "Merge All", "type": "main", "index": 0 }]
+      ]
+    },
+    "RSS Tweakers": {
+      "main": [
+        [{ "node": "Merge All", "type": "main", "index": 1 }]
+      ]
+    },
+    "Merge All": {
+      "main": [
+        [{ "node": "Remove Duplicates", "type": "main", "index": 0 }]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [{ "node": "Limit 20", "type": "main", "index": 0 }]
+      ]
+    },
+    "Limit 20": {
+      "main": [
+        [{ "node": "Normalize Fields", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Fields": {
+      "main": [
+        [{ "node": "Create Article", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Article": {
+      "main": [
+        [{ "node": "Merge Article ID", "type": "main", "index": 0 }]
+      ]
+    },
+    "Merge Article ID": {
+      "main": [
+        [{ "node": "TTS Parkiet", "type": "main", "index": 0 }]
+      ]
+    },
+    "TTS Parkiet": {
+      "main": [
+        [{ "node": "Upload Parkiet Audio", "type": "main", "index": 0 }]
+      ]
+    },
+    "Manual Refresh Webhook": {
+      "main": [
+        [
+          { "node": "RSS NOS", "type": "main", "index": 0 },
+          { "node": "RSS NU.nl", "type": "main", "index": 0 },
+          { "node": "RSS Tweakers", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "news-briefing"
+    }
+  ]
+}

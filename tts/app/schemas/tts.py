@@ -3,8 +3,9 @@ from pydantic import BaseModel, field_validator
 
 class SynthesizeRequest(BaseModel):
     text: str
-    engine: str = "auto"   # "piper" | "parkiet" | "auto"
+    engine: str = "auto"           # "piper" | "parkiet" | "auto"
     voice: str = "default"
+    output_format: str = "wav"     # "wav" | "mp3"
 
     @field_validator("engine")
     @classmethod
@@ -12,6 +13,14 @@ class SynthesizeRequest(BaseModel):
         allowed = {"piper", "parkiet", "auto"}
         if v not in allowed:
             raise ValueError(f"engine must be one of {allowed}")
+        return v
+
+    @field_validator("output_format")
+    @classmethod
+    def validate_output_format(cls, v: str) -> str:
+        allowed = {"wav", "mp3"}
+        if v not in allowed:
+            raise ValueError(f"output_format must be one of {allowed}")
         return v
 
     @field_validator("text")
