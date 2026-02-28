@@ -103,9 +103,25 @@ services:
     networks:
       - ai-net
 
+  whatsapp-web:
+    build: ./whatsapp-web
+    ports:
+      - "3001:3001"
+    volumes:
+      - whatsapp-session:/data/session
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai-net
+
 volumes:
   stt-cache:
   tts-cache:
   tts-models:
   ollama-data:
   n8n-data:
+  whatsapp-session:

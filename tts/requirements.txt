@@ -9,3 +9,4 @@ protobuf>=4.25.0
 huggingface-hub>=0.22.0
 numpy>=1.26.0
 pathvalidate>=3.0.0
+num2words>=0.5.13

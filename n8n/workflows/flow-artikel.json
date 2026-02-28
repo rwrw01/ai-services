@@ -1,0 +1,98 @@
+{
+  "id": "flow-artikel",
+  "name": "Flow — Artikel schrijven",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flow-artikel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "flow-artikel"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama3:8b-instruct-q4_K_M', messages: [{ role: 'system', content: 'Je bent een Nederlandse schrijver. Herschrijf de gegeven tekst tot een goed leesbaar artikel. Gebruik eenvoudig Nederlands (B1 niveau). Geef het artikel een passende titel. Formaat: eerst de titel op een eigen regel, dan een lege regel, dan de tekst.' }, { role: 'user', content: 'Onderwerp: ' + $json.params.onderwerp + '\\n\\nBrontekst: ' + $json.source_text }], stream: false }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "llm-rewrite",
+      "name": "LLM Herschrijf",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ 'artikel-' + new Date().toISOString().slice(0,10) + '-' + $('Webhook Trigger').item.json.params.onderwerp.replace(/[^a-zA-Z0-9]/g, '-').slice(0, 40) + '.txt' }}",
+        "folderId": "root",
+        "options": {}
+      },
+      "id": "google-drive",
+      "name": "Google Drive Upload",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [600, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "CONFIGURE_IN_N8N_UI",
+          "name": "Google Drive OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ article_text: $('LLM Herschrijf').item.json.message?.content || 'Geen tekst gegenereerd', drive_url: $json.webViewLink || null, status: 'success' }) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "LLM Herschrijf", "type": "main", "index": 0 }]
+      ]
+    },
+    "LLM Herschrijf": {
+      "main": [
+        [{ "node": "Google Drive Upload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Google Drive Upload": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "flow" }]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "whatsapp-web-service",
+  "version": "1.0.0",
+  "description": "WhatsApp Web.js wrapper for Herinneringen flows",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "whatsapp-web.js": "^1.34.6",
+    "qrcode": "^1.5.4"
+  }
+}

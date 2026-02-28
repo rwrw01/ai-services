@@ -50,7 +50,8 @@
       "name": "RSS Tweakers",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
-      "position": [250, 500]
+      "position": [250, 500],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -74,6 +75,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Filter out error items from failed RSS feeds\nreturn $input.all().filter(item => item.json.link || item.json.url || item.json.title);"
+      },
+      "id": "filter-valid",
+      "name": "Filter Valid Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
         "options": {},
         "compare": "selectedFields",
         "fieldsToCompare": "link"
@@ -82,7 +93,7 @@
       "name": "Remove Duplicates",
       "type": "n8n-nodes-base.removeDuplicates",
       "typeVersion": 1,
-      "position": [900, 300]
+      "position": [950, 300]
     },
     {
       "parameters": {
@@ -144,22 +155,37 @@
               "responseFormat": "file"
             }
           },
-          "timeout": 300000
+          "timeout": 600000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
         }
       },
       "id": "tts-parkiet",
       "name": "TTS Parkiet",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1950, 300]
+      "position": [1950, 300],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://backend:8000/api/news/ingest/article/{{ $('Merge Article ID').item.json.article_id }}/audio?engine=parkiet",
         "sendBody": true,
-        "contentType": "binaryData",
-        "inputDataFieldName": "data",
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
         "options": {
           "timeout": 30000
         }
@@ -169,6 +195,59 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [2150, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://tts:8002/api/tts/synthesize",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.title + '. ' + $json.description, engine: 'piper', output_format: 'mp3' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 300000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "tts-piper",
+      "name": "TTS Piper Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1950, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://backend:8000/api/news/ingest/article/{{ $('Merge Article ID').item.json.article_id }}/audio?engine=piper",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "upload-piper",
+      "name": "Upload Piper Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2150, 500]
     },
     {
       "parameters": {
@@ -216,6 +295,11 @@
     },
     "Merge All": {
       "main": [
+        [{ "node": "Filter Valid Items", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filter Valid Items": {
+      "main": [
         [{ "node": "Remove Duplicates", "type": "main", "index": 0 }]
       ]
     },
@@ -246,7 +330,13 @@
     },
     "TTS Parkiet": {
       "main": [
-        [{ "node": "Upload Parkiet Audio", "type": "main", "index": 0 }]
+        [{ "node": "Upload Parkiet Audio", "type": "main", "index": 0 }],
+        [{ "node": "TTS Piper Fallback", "type": "main", "index": 0 }]
+      ]
+    },
+    "TTS Piper Fallback": {
+      "main": [
+        [{ "node": "Upload Piper Audio", "type": "main", "index": 0 }]
       ]
     },
     "Manual Refresh Webhook": {
