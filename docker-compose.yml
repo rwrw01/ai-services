@@ -14,7 +14,6 @@ services:
       - path: .env
         required: false
     restart: unless-stopped
-    profiles: ["stt"]     # Standaard uit — wordt vervangen door gpu-queue + Qwen3-ASR
     volumes:
       - stt-cache:/app/.cache
     deploy:
@@ -116,7 +115,6 @@ services:
         condition: service_healthy
     networks:
       - ai-net
-      - app_net
 
   n8n:
     image: n8nio/n8n:latest
