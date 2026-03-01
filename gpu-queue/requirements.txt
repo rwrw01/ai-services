@@ -1,0 +1,5 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+httpx>=0.28
+onnx-asr[hub]>=0.10.0
+onnxruntime-gpu[cuda,cudnn]>=1.21.0

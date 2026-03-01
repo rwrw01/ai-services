@@ -1,6 +1,9 @@
 networks:
   ai-net:
     name: ai-net
+  app_net:
+    name: app_net
+    driver: bridge
 
 services:
   stt:
@@ -11,6 +14,7 @@ services:
       - path: .env
         required: false
     restart: unless-stopped
+    profiles: ["stt"]     # Standaard uit — wordt vervangen door gpu-queue + Qwen3-ASR
     volumes:
       - stt-cache:/app/.cache
     deploy:
@@ -36,6 +40,7 @@ services:
       - TTS_DEFAULT_ENGINE=piper
       - CUDA_VISIBLE_DEVICES=0
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - OLLAMA_BASE_URL=http://ollama:11434
     env_file:
       - path: .env
         required: false
@@ -63,6 +68,10 @@ services:
       - ollama-data:/root/.ollama
     environment:
       - CUDA_VISIBLE_DEVICES=0
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_KEEP_ALIVE=10m
+      - OLLAMA_FLASH_ATTENTION=1
     deploy:
       resources:
         reservations:
@@ -72,12 +81,42 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
       - ai-net
+      - app_net
+
+  gpu-queue:
+    build: ./gpu-queue
+    ports:
+      - "8003:8003"
+    volumes:
+      - gpu-queue-models:/root/.cache/huggingface
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - SUPERVISOR_URL=http://supervisor:8100
+      - LOG_LEVEL=info
+      - CUDA_VISIBLE_DEVICES=0
+    env_file:
+      - path: .env
+        required: false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - ai-net
+      - app_net
 
   n8n:
     image: n8nio/n8n:latest
@@ -123,5 +162,6 @@ volumes:
   tts-cache:
   tts-models:
   ollama-data:
+  gpu-queue-models:
   n8n-data:
   whatsapp-session:

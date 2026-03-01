@@ -127,10 +127,34 @@ class ParkietEngine(TTSEngine):
             self._last_used = time.monotonic()
             return wav_bytes
 
+    @staticmethod
+    def _release_ollama_vram() -> None:
+        """Vraag Ollama om VRAM vrij te maken vóór Parkiet laden."""
+        import os
+
+        import httpx
+
+        ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")
+        try:
+            with httpx.Client(timeout=10) as client:
+                resp = client.get(f"{ollama_url}/api/ps")
+                resp.raise_for_status()
+                for model in resp.json().get("models", []):
+                    name = model.get("name", "")
+                    logger.info("Unloading Ollama model %s for Parkiet VRAM", name)
+                    client.post(
+                        f"{ollama_url}/api/generate",
+                        json={"model": name, "keep_alive": 0},
+                    )
+            time.sleep(2)  # Wacht op VRAM vrijgave
+        except Exception as exc:
+            logger.warning("Kon Ollama modellen niet unloaden: %s", exc)
+
     def _ensure_loaded(self) -> None:
         if self._pipeline is not None:
             return
         logger.info("Loading Parkiet model from %s ...", PARKIET_MODEL)
+        self._release_ollama_vram()
         try:
             import torch
             from transformers import pipeline as hf_pipeline
