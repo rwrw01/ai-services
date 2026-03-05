@@ -3,3 +3,5 @@ uvicorn[standard]>=0.32.0
 python-multipart>=0.0.12
 onnx-asr[hub]>=0.10.0
 onnxruntime-gpu[cuda,cudnn]>=1.21.0
+httpx>=0.27.0
+speechmatics-python>=1.0.0

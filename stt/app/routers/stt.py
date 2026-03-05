@@ -3,13 +3,19 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import onnx_asr
 from fastapi import APIRouter, File, HTTPException, UploadFile
+
+from app.engines import create_engine
+from app.engines.base import STTEngine
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-_vad_model = None
+engine: STTEngine | None = None
+
+
+def get_engine() -> STTEngine | None:
+    return engine
 
 MAX_FILE_BYTES = 200 * 1024 * 1024  # 200 MB
 MAX_DURATION_SECS = 5400  # 1 hour 30 minutes
@@ -27,14 +33,11 @@ SUPPORTED_TYPES = {
 }
 
 
-def load_model() -> None:
-    global _vad_model
-    logger.info("Loading parakeet-tdt-0.6b-v3 ...")
-    model = onnx_asr.load_model("nemo-parakeet-tdt-0.6b-v3")
-    logger.info("Model ready. Loading Silero VAD ...")
-    vad = onnx_asr.load_vad("silero")
-    _vad_model = model.with_vad(vad, max_speech_duration_s=180)
-    logger.info("VAD ready.")
+def init_engine() -> None:
+    """Create and load the configured STT engine (called from lifespan)."""
+    global engine
+    engine = create_engine()
+    engine.load()
 
 
 def _get_duration(wav_path: str) -> float:
@@ -52,8 +55,8 @@ def _get_duration(wav_path: str) -> float:
 
 @router.post("/api/stt")
 async def speech_to_text(audio: UploadFile = File(...)):
-    """Transcribe uploaded audio to text using Parakeet TDT 0.6B v3 (ONNX) with VAD."""
-    if _vad_model is None:
+    """Transcribe uploaded audio to text using the configured STT engine."""
+    if engine is None:
         raise HTTPException(status_code=503, detail="Model wordt nog geladen, probeer opnieuw")
 
     base_type = (audio.content_type or "application/octet-stream").split(";")[0].strip()
@@ -88,10 +91,9 @@ async def speech_to_text(audio: UploadFile = File(...)):
                 detail=f"Audio te lang ({int(duration)}s, max {MAX_DURATION_SECS}s)",
             )
 
-        segments = _vad_model.recognize(wav_path)
-        text = " ".join(seg.text for seg in segments)
-        logger.info("Transcriptie (%ds, VAD): %r", int(duration), text[:120])
-        return {"text": text}
+        result = await engine.transcribe(wav_path)
+        logger.info("Transcriptie (%ds, %s): %r", int(duration), engine.name, result["text"][:120])
+        return result
 
     finally:
         if wav_path:
