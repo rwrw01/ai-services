@@ -10,6 +10,9 @@ services:
     build: ./stt
     ports:
       - "8001:8001"
+    environment:
+      - STT_ENGINE=${STT_ENGINE:-parakeet}
+      - SPEECHMATICS_API_KEY=${SPEECHMATICS_API_KEY:-}
     env_file:
       - path: .env
         required: false

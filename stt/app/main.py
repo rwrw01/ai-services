@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers.stt import load_model, router as stt_router
+from app.routers.stt import get_engine, init_engine, router as stt_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,12 +16,11 @@ ALLOWED_ORIGINS = list({_origin, "http://localhost:3000", "http://127.0.0.1:3000
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load the Parakeet model in a thread so the event loop stays free
-    await asyncio.to_thread(load_model)
+    await asyncio.to_thread(init_engine)
     yield
 
 
-app = FastAPI(title="Memories Backend", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="STT Service", version="0.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,4 +35,8 @@ app.include_router(stt_router)
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "memories-backend"}
+    eng = get_engine()
+    if eng is None:
+        return {"status": "loading", "engine": "unknown"}
+    engine_health = await eng.health()
+    return {"status": "ok", **engine_health}
