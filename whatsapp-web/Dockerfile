@@ -34,6 +34,12 @@ RUN npm install --omit=dev
 
 COPY server.js .
 
+RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
+    && mkdir -p /home/pptruser /data/session \
+    && chown -R pptruser:pptruser /home/pptruser /data/session /app
+
+USER pptruser
+
 EXPOSE 3001
 
 CMD ["node", "server.js"]

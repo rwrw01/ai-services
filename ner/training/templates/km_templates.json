@@ -1,0 +1,41 @@
+{
+  "cities": [
+    "breda", "rotterdam", "amsterdam", "utrecht", "tilburg",
+    "eindhoven", "den haag", "den bosch", "roosendaal", "bergen op zoom",
+    "dordrecht", "arnhem", "nijmegen", "maastricht", "etten-leur",
+    "zundert", "oosterhout", "waalwijk", "gorinchem", "middelburg",
+    "goes", "vlissingen", "terneuzen", "delft", "leiden",
+    "haarlem", "almere", "amersfoort", "apeldoorn", "deventer",
+    "zwolle", "enschede", "groningen", "leeuwarden", "helmond",
+    "moerdijk", "steenbergen", "woensdrecht", "halderberge",
+    "rucphen", "drimmelen", "geertruidenberg", "dongen",
+    "alphen-chaam", "baarle-nassau", "gilze en rijen",
+    "goirle", "hilvarenbeek", "oisterwijk", "loon op zand"
+  ],
+  "home_locations": [
+    "huis", "thuis", "kantoor", "werk", "basis"
+  ],
+  "buildings": [
+    "bravis", "amphia", "ETZ", "catharina", "maxima MC",
+    "erasmus MC", "albert schweitzer", "maasstad",
+    "reinier de graaf", "haga ziekenhuis", "jeroen bosch ziekenhuis",
+    "zorgsaam", "ADRZ", "rijnstate", "gelre ziekenhuis",
+    "isala", "radboud UMC", "UMC utrecht", "LUMC",
+    "amsterdam UMC", "deventer ziekenhuis", "UMCG",
+    "franciscus gasthuis", "ikazia", "beatrix ziekenhuis",
+    "station", "gemeentehuis", "stadskantoor", "stadhuis",
+    "politiebureau", "brandweerkazerne", "rechtbank",
+    "school", "universiteit", "hogeschool",
+    "bibliotheek", "sporthal"
+  ],
+  "purposes": [
+    "klantbezoek", "vergadering", "overleg", "training",
+    "bouwvergadering", "werkoverleg", "teamoverleg", "oplevering",
+    "inspectie", "audit", "presentatie", "demo",
+    "sollicitatiegesprek", "intake", "consult",
+    "onderhoud", "reparatie", "installatie",
+    "projectbezoek", "locatiebezoek", "kick-off"
+  ],
+  "connectors": ["en", "daarna", "vervolgens", "dan", "en dan", ""],
+  "prepositions_to": ["naar", "richting"]
+}

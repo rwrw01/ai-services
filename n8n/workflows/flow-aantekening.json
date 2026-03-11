@@ -1,0 +1,86 @@
+{
+  "id": "flow-aantekening",
+  "name": "Flow — Aantekening (Nextcloud Notes)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flow-aantekening",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "flow-aantekening"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NEXTCLOUD_URL }}/index.php/apps/notes/api/v1/notes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "OCS-APIRequest",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: ($json.params?.tekst || $json.source_text || '').substring(0, 50), content: $json.params?.tekst || $json.source_text || '', category: 'Spraak' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "create-note",
+      "name": "Nextcloud Note Aanmaken",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "CONFIGURE_IN_N8N_UI",
+          "name": "Nextcloud Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'created', note_id: $json.id || null, title: $json.title || null }) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [600, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Nextcloud Note Aanmaken", "type": "main", "index": 0 }]
+      ]
+    },
+    "Nextcloud Note Aanmaken": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "flow" }]
+}

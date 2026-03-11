@@ -1,6 +1,6 @@
 {
   "id": "flow-artikel",
-  "name": "Flow — Artikel schrijven",
+  "name": "Flow — Artikel schrijven (Anthropic)",
   "nodes": [
     {
       "parameters": {
@@ -19,10 +19,18 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://ollama:11434/api/chat",
+        "url": "https://api.anthropic.com/v1/messages",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -31,60 +39,36 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'llama3:8b-instruct-q4_K_M', messages: [{ role: 'system', content: 'Je bent een Nederlandse schrijver. Herschrijf de gegeven tekst tot een goed leesbaar artikel. Gebruik eenvoudig Nederlands (B1 niveau). Geef het artikel een passende titel. Formaat: eerst de titel op een eigen regel, dan een lege regel, dan de tekst.' }, { role: 'user', content: 'Onderwerp: ' + $json.params.onderwerp + '\\n\\nBrontekst: ' + $json.source_text }], stream: false }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-5-20250929', max_tokens: 4096, system: 'Je bent een Nederlandse artikelschrijver. Schrijf een goed leesbaar, informatief artikel over het gegeven onderwerp. Gebruik eenvoudig Nederlands (B1-B2 niveau). Begin met een pakkende titel, dan een lege regel, dan de volledige artikeltekst. Gebruik paragrafen en tussenkopjes waar nodig.', messages: [{ role: 'user', content: 'Onderwerp: ' + $json.params.onderwerp + '\\n\\nBrontekst: ' + $json.source_text }] }) }}",
         "options": {
           "timeout": 120000
         }
       },
-      "id": "llm-rewrite",
-      "name": "LLM Herschrijf",
+      "id": "anthropic-artikel",
+      "name": "Anthropic Artikel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [300, 300]
     },
     {
       "parameters": {
-        "operation": "upload",
-        "name": "={{ 'artikel-' + new Date().toISOString().slice(0,10) + '-' + $('Webhook Trigger').item.json.params.onderwerp.replace(/[^a-zA-Z0-9]/g, '-').slice(0, 40) + '.txt' }}",
-        "folderId": "root",
-        "options": {}
-      },
-      "id": "google-drive",
-      "name": "Google Drive Upload",
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
-      "position": [600, 300],
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "CONFIGURE_IN_N8N_UI",
-          "name": "Google Drive OAuth2"
-        }
-      }
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ article_text: $('LLM Herschrijf').item.json.message?.content || 'Geen tekst gegenereerd', drive_url: $json.webViewLink || null, status: 'success' }) }}"
+        "responseBody": "={{ JSON.stringify({ article_text: $json.content?.[0]?.text || 'Geen tekst gegenereerd', status: 'success' }) }}"
       },
       "id": "respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [900, 300]
+      "position": [600, 300]
     }
   ],
   "connections": {
     "Webhook Trigger": {
       "main": [
-        [{ "node": "LLM Herschrijf", "type": "main", "index": 0 }]
+        [{ "node": "Anthropic Artikel", "type": "main", "index": 0 }]
       ]
     },
-    "LLM Herschrijf": {
-      "main": [
-        [{ "node": "Google Drive Upload", "type": "main", "index": 0 }]
-      ]
-    },
-    "Google Drive Upload": {
+    "Anthropic Artikel": {
       "main": [
         [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
       ]

@@ -14,9 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 
+RUN useradd -m -u 1000 app && chown -R app:app /app
+USER app
+
 EXPOSE 8003
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]

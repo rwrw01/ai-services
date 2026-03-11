@@ -5,15 +5,12 @@ import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers.stt import get_engine, init_engine, router as stt_router
+from app.routers.extract import get_engine, init_engine, router as extract_router
 
 logging.basicConfig(level=logging.INFO)
 
 _INTERNAL_KEY = os.getenv("INTERNAL_KEY", "")
-_origin = os.getenv("ORIGIN", "http://localhost:3000")
-ALLOWED_ORIGINS = list({_origin, "http://localhost:3000", "http://127.0.0.1:3000"})
 
 
 async def _verify_internal_key(request: Request):
@@ -33,24 +30,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="STT Service",
-    version="0.4.0",
+    title="NER Service",
+    version="0.2.0",
     lifespan=lifespan,
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
     dependencies=[Depends(_verify_internal_key)],
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "X-Internal-Key"],
-)
-
-app.include_router(stt_router)
+app.include_router(extract_router)
 
 
 @app.get("/health")

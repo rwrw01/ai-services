@@ -9,10 +9,18 @@ services:
   stt:
     build: ./stt
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev,size=500M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       - STT_ENGINE=${STT_ENGINE:-parakeet}
       - SPEECHMATICS_API_KEY=${SPEECHMATICS_API_KEY:-}
+      - INTERNAL_KEY=${INTERNAL_KEY:-}
     env_file:
       - path: .env
         required: false
@@ -32,7 +40,7 @@ services:
   tts:
     build: ./tts
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     volumes:
       - tts-cache:/data/tts-cache
       - tts-models:/app/.cache
@@ -55,7 +63,7 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -65,7 +73,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama-data:/root/.ollama
     environment:
@@ -94,7 +102,7 @@ services:
   gpu-queue:
     build: ./gpu-queue
     ports:
-      - "8003:8003"
+      - "127.0.0.1:8003:8003"
     volumes:
       - gpu-queue-models:/root/.cache/huggingface
     environment:
@@ -122,7 +130,7 @@ services:
   n8n:
     image: n8nio/n8n:latest
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     volumes:
       - n8n-data:/home/node/.n8n
     environment:
@@ -131,6 +139,8 @@ services:
       - N8N_BASIC_AUTH_USER=${N8N_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
       - WEBHOOK_URL=http://n8n:5678/
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL:-}
     env_file:
       - path: .env
         required: false
@@ -143,10 +153,42 @@ services:
     networks:
       - ai-net
 
+  ner:
+    build: ./ner
+    ports:
+      - "127.0.0.1:8004:8004"
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev,size=100M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      - INTERNAL_KEY=${INTERNAL_KEY:-}
+    volumes:
+      - ner-models:/app/models
+      - ner-cache:/app/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai-net
+
   whatsapp-web:
     build: ./whatsapp-web
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     volumes:
       - whatsapp-session:/data/session
     restart: unless-stopped
@@ -164,5 +206,7 @@ volumes:
   tts-models:
   ollama-data:
   gpu-queue-models:
+  ner-models:
+  ner-cache:
   n8n-data:
   whatsapp-session:
